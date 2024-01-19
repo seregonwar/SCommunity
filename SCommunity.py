@@ -1,78 +1,65 @@
-import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
-import webview
+from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtCore import QUrl
 from bs4 import BeautifulSoup
 import requests
+import sys
 
-# Funzione per ottenere il nuovo indirizzo dal sito web
+class App(QApplication):
+    def __init__(self, args):
+        super().__init__(args)
+        self.main_window = QMainWindow()
+
+    def show_login_page(self, url):
+        view = QWebEngineView()
+        view.load(QUrl(url))
+        self.main_window.setCentralWidget(view)
+        self.main_window.show()
+
 def get_updated_link():
-    url = "https://infotelematico.com/streaming-community/"
+    url = "https://www.informarea.it/streamingcommunity-nuovo-indirizzo/"
     try:
-        response = requests.get(url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.1234.567 Safari/537.36',
+            'X-XSRF-TOKEN': 'eyJpdiI6ImRESzc0NlhxekVqREQ4WFIzdWtTYmc9PSIsInZhbHVlIjoiNm9iRmJNdHdFRlZoSzRqNEFBT2pJc0srUzVhYS9kNitDTXpMdGtiSHA1aVoxbHBkYnhZbVphaTVqT3RKNXNING9BYjF3aGsyK1lSa2RWTm5ZSmVoRGFMdlBWZnNHbmF3WmxtQXh5OVhpaVdMdDR5V1YwOEUvWmF0N3kwOUVXNUQiLCJtYWMiOiI2OTRkMTU4NmQ5OWQxMDExZDg2Y2QxYjgzMmQ2N2JmN2M5NTZhMzY0NjFjOTUxMDc2OWNmNzU1ZTdmODljYjk1IiwidGFnIjoiIn0%3D',
+            'Cookie': 'eyJpdiI6InVPemVTNmNLSmowZkxYdU10V2xja2c9PSIsInZhbHVlIjoiSWxmU25NZitOZGIvSzE2MWZaMEUzZWRjQlV4KzViM2pSd0tvZjJKdTliemVJVFdjaS9zQkkvdWwxdEdCQWllclAzQUVFckRUVW9PaGd4OWgwbUJQeGhxc1lTT3lKZGZQaDBGRmFHR01rakZBc2dWbkhuVGxNd2FPeWJRWDUvZHoiLCJtYWMiOiI3ZjI0MjVmMTZmMjhlN2E2ZjdkZWFkZjNlMGYxM2Y4NjI2NThkZDU0MGJlOWI4NTE4Y2MyY2Y2MDE3YjBiMDgyIiwidGFnIjoiIn0%3D'
+        }
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
         html = response.text
         soup = BeautifulSoup(html, "html.parser")
-        link_elements = soup.select("ul li mark")
-        links = [element.text for element in link_elements]
+        link_elements = soup.select("ul li strong span[style='color: #ff0000;']")
+        links = [element.text.strip() for element in link_elements]
         return links
-    except Exception as e:
+    except requests.RequestException as e:
         print("Errore durante il recupero dei link:", str(e))
         return []
 
-# Funzione per controllare la validit� dei link
+
 def check_link_validity(link):
     try:
         response = requests.head(link)
-        if response.status_code == 200:
-            return True
-    except requests.exceptions.RequestException:
-        pass
-    return False
+        return response.status_code == 200
+    except requests.RequestException:
+        return False
 
-# Funzione per controllare l'aggiornamento del link all'avvio dell'app
 def check_for_update():
     links = get_updated_link()
     if links:
         print("Link trovati:", links)
-        new_link = links[-1]  # Prende l'ultimo link nella lista
+        new_link = links[-1]
         print("Nuovo indirizzo trovato:", new_link)
         if check_link_validity(new_link):
-            print("Il link e' valido.")
+            print("Il link è valido.")
             login_url = new_link + "/login"
-            show_login_page(login_url)
+            app.show_login_page(login_url)
         else:
-            print("Il link non e' valido.")
+            print("Il link non è valido.")
     else:
         print("Nessun link trovato.")
 
-# Funzione per visualizzare la pagina di login nell'applicazione
-def show_login_page(url):
-    window.withdraw()  # Nasconde la finestra principale
-    login_window = tk.Toplevel(window)  # Crea una nuova finestra per la pagina di login
-    login_window.title("Login")
-    login_window.geometry("800x600")
+if __name__ == "__main__":
+    app = App(sys.argv)
+    check_for_update()
+    sys.exit(app.exec_())
 
-    # Funzione per chiudere la finestra di login e tornare alla finestra principale
-    def close_login_window():
-        login_window.destroy()
-        window.deiconify()  # Mostra nuovamente la finestra principale
-
-    # Widget WebView per visualizzare la pagina di login
-    login_webview = webview.WebView(login_window)
-    login_webview.pack(fill=tk.BOTH, expand=True)
-    login_webview.load_url(url)
-
-    # Gestione dell'evento di chiusura della finestra di login
-    login_window.protocol("WM_DELETE_WINDOW", close_login_window)
-
-# Creazione dell'interfaccia grafica dell'app
-window = tk.Tk()
-window.title("App Streaming Community")
-window.geometry("800x600")
-
-# Pulsante per il login
-login_button = ttk.Button(window, text="Login", command=check_for_update)
-login_button.pack()
-
-# Esecuzione dell'app
-window.mainloop()
